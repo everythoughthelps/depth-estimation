@@ -22,6 +22,7 @@ class depthDataset(Dataset):
     def __getitem__(self, idx):
         image_name = self.frame.at[idx, 0]
         depth_name = self.frame.at[idx, 1]
+        print(image_name,depth_name)
 
         image = Image.open(os.path.join(self.data_path, image_name))
         depth = Image.open(os.path.join(self.data_path, depth_name))
@@ -87,8 +88,8 @@ def getTestingData(args):
                                        csv_file='data/nyu2_test.csv',
                                        transform=transforms.Compose([
                                            Scale(240),
-                                           #CenterCrop([320, 224], [320, 224]),
-                                           CenterCrop([304, 228], [304, 228]),
+                                           CenterCrop([320, 224], [320, 224]),
+                                           #CenterCrop([304, 228], [304, 228]),
                                            ToTensor(is_test=True),
                                            # Normalize(__imagenet_stats['mean'],
                                            #           __imagenet_stats['std'])

@@ -1,7 +1,7 @@
 import argparse
 
 import time
-
+import visdom
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -45,6 +45,8 @@ def define_model():
 
     return model
 
+vis=visdom.Visdom(env='depth estimation')
+vis.line([[0.,0.]], [0], win='train', opts=dict(title='loss&acc', legend=['loss','rmse']))
 
 def main():
     global args
@@ -69,8 +71,9 @@ def main():
 
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
-        train(train_loader, model, optimizer, epoch)
-        test(test_loader, model, epoch)
+        loss=train(train_loader, model, optimizer, epoch)
+        rmse=test(test_loader, model, epoch)
+        vis.line([[np.array(loss)],[np.array(rmse)]], [np.array(epoch)], win='train', update='append')
 
         save_checkpoint({'state_dict': model.state_dict()}, filename=os.path.join(args.ckp_path, '%02dcheckpoint.pth.tar' % epoch))
 
@@ -117,9 +120,11 @@ def train(train_loader, model, optimizer, epoch):
 
         with open(os.path.join(args.save_path, 'records_batch.csv'), 'a') as f:
             f.write('%d,%d/%d,%f,%f,%f,%f\n' % (epoch, i, len(train_loader), batch_time.val, batch_time.sum, losses.val, losses.avg))
+        break
 
     with open(os.path.join(args.save_path, 'records_epoch.csv'), 'a') as f:
         f.write('%d,%f\n' % (epoch, losses.avg))
+    return losses.avg
 
 
 def test(test_loader, model, epoch):
@@ -146,6 +151,7 @@ def test(test_loader, model, epoch):
         errors = util.evaluateError(depth_pred, depth)
         errorSum = util.addErrors(errorSum, errors, batchSize)
         averageError = util.averageErrors(errorSum, totalNumber)
+        break
 
     averageError['RMSE'] = np.sqrt(averageError['MSE'])
     print('epoch %d testing' % epoch)
@@ -162,6 +168,7 @@ def test(test_loader, model, epoch):
                  averageError['DELTA1'],
                  averageError['DELTA2'],
                  averageError['DELTA3']))
+    return averageError['RMSE']
 
 
 def soft_sum(probs):
