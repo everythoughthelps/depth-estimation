@@ -12,6 +12,7 @@ import loaddata
 import util
 import numpy as np
 import sobel
+from torchvision.transforms import ToPILImage
 from models import modules, net, resnet, densenet, senet, resnext
 import os
 
@@ -27,6 +28,7 @@ parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch num
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float, help='weight decay (default: 1e-4)')
+parser.add_argument('--load',default='/home/panmeng/PycharmProjects/pt1.1/depth-estimation/experiments/2020_03_28_18_35_04/ckp/07checkpoint.pth.tar')
 
 
 def define_model():
@@ -52,6 +54,9 @@ def main():
     global args
     args = parser.parse_args()
     model = define_model()
+    if args.load:
+        model.load_state_dict(torch.load(args.load)['state_dict'])
+        print('Model loaded from {}'.format(args.load))
 
     if torch.cuda.is_available():
         model = model.cuda()
@@ -145,6 +150,13 @@ def test(test_loader, model, epoch):
         output = F.softmax(model(image))
         depth_pred = soft_sum(output)
         depth_pred = F.interpolate(depth_pred, size=[depth.size(2), depth.size(3)], mode='bilinear')
+
+        results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / 255)
+        if not os.path.exists('results'):
+            os.mkdir('results')
+        if not os.path.exists('results/' + str(epoch) + 'epochs_results'):
+            os.mkdir('results/' + str(epoch) + 'epochs_results')
+        results_imgs.save(os.getcwd() + '/results/' + str(epoch) + 'epochs_results/' + str(i)+'.png')
 
         batchSize = depth.size(0)
         totalNumber = totalNumber + batchSize

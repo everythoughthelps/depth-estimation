@@ -89,8 +89,11 @@ class FeatureFusionModule(nn.Module):
 
     def forward(self, x, y):
         x = self.FTB1(x)
+        print('1',x.size())
         x = self.AFA(x, y)
+        print('2',x.size(),y.size())
         x = self.FTB2(x)
+        print('3',x.size())
         x = F.interpolate(x, scale_factor=2, mode='bilinear')
         return x
 
@@ -113,22 +116,22 @@ class DABC(nn.Module):
     def forward(self, x):
         print('x',x.size())
         x_block1, x_block2, x_block3, x_block4, glo_fea = self.fea_ext_module(x)
-        print('xb1',x_block1.size())
-        print('xb2',x_block2.size())
-        print('xb3',x_block3.size())
-        print('xb4',x_block4.size())
+        print(x_block1.size())
+        print(x_block2.size())
+        print(x_block3.size())
+        print(x_block4.size())
+        print(glo_fea.size())
 
         out = self.F4(x_block4, glo_fea)
-        print('out',out.size())
+        print(out.size())
         out = self.F3(x_block3, out)
-        print('out',out.size())
+        print(out.size())
         out = self.F2(x_block2, out)
-        print('out',out.size())
+        print(out.size())
         out = self.F1(x_block1, out)
-        print('out',out.size())
+        print(out.size())
 
         out = self.prediction(out)
-        print('out',out.size())
         # out = F.softmax(out, dim=1)
 
         return out
