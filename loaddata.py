@@ -17,7 +17,7 @@ class depthDataset(Dataset):
         self.frame = pd.read_csv(os.path.join(self.data_path, csv_file), header=None)
         self.transform = transform
         self.e = args.e
-        self.q = (np.log10(10 + self.e) - np.log10(self.e)) / (args.num_classes - 1)
+        self.q = (np.log10(10) - np.log10(self.e)) / (args.num_classes-1)
 
     def __getitem__(self, idx):
         image_name = self.frame.at[idx, 0]
@@ -28,14 +28,13 @@ class depthDataset(Dataset):
         depth = Image.open(os.path.join(self.data_path, depth_name))
 
         sample = {'image': image, 'depth': depth}
-
         if self.transform:
             sample = self.transform(sample)
 
         sample['depth'] = sample['depth']
 
         sample['label'] = torch.squeeze(
-            torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
+            torch.floor((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
 
         return sample
 

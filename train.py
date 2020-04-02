@@ -22,13 +22,13 @@ parser.add_argument('--data', default='/data/nyuv2/', type=str, help='path of da
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
 parser.add_argument('--batch_size', default=4, type=int, help='batch size')
-parser.add_argument('--e', default=0.24, type=float, help='avoid log0')
+parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
 parser.add_argument('--epochs', default=50, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number (useful on restarts)')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float, help='weight decay (default: 1e-4)')
-parser.add_argument('--load',default='/home/panmeng/PycharmProjects/pt1.1/depth-estimation/experiments/2020_03_28_18_35_04/ckp/07checkpoint.pth.tar')
+parser.add_argument('--load',default=False)
 
 
 def define_model():
@@ -116,6 +116,7 @@ def train(train_loader, model, optimizer, epoch):
         optimizer.step()
 
         batch_time.update(time.time() - end)
+
         end = time.time()
 
         print('Epoch: [{0}][{1}/{2}]\t'
@@ -125,7 +126,8 @@ def train(train_loader, model, optimizer, epoch):
 
         with open(os.path.join(args.save_path, 'records_batch.csv'), 'a') as f:
             f.write('%d,%d/%d,%f,%f,%f,%f\n' % (epoch, i, len(train_loader), batch_time.val, batch_time.sum, losses.val, losses.avg))
-        break
+        if i == 3:
+            break
 
     with open(os.path.join(args.save_path, 'records_epoch.csv'), 'a') as f:
         f.write('%d,%f\n' % (epoch, losses.avg))
@@ -184,17 +186,23 @@ def test(test_loader, model, epoch):
 
 
 def soft_sum(probs):
-    ones = torch.ones(probs.size()).float().cuda()
-    unit = torch.arange(0, args.num_classes).view(1, probs.size(1), 1, 1).float()
-    weight = unit
-    for _ in range(probs.size(0) - 1):
-        weight = torch.cat((weight, unit), dim=0)
-    weight = ones * weight.cuda()
-    q = (np.log10(10 + args.e) - np.log10(args.e)) / (args.num_classes - 1)
-    weight = weight * q + np.log10(args.e)
-    depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
-    depth_value = torch.unsqueeze(depth_value, dim=1)
+    #ones = torch.ones(probs.size()).float().cuda()
+    #unit = torch.arange(0, args.num_classes).view(1, probs.size(1), 1, 1).float()
+    #weight = unit
+    #for _ in range(probs.size(0) - 1):
+    #    weight = torch.cat((weight, unit), dim=0)
+    #weight = ones * weight.cuda()
+    #q = (np.log10(10) - np.log10(args.e)) / (args.num_classes - 1)
+    #weight = weight * q + np.log10(args.e)
+    #depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
+    #depth_value = torch.unsqueeze(depth_value, dim=1)
 
+
+    q = (np.log10(10) - np.log10(args.e)) / (args.num_classes - 1)
+    label = probs.max(dim = 1)
+    lgdepth = label * q + np.log10(args.e)
+    depth_value = 10 ** (lgdepth) - args.e
+    depth_value = torch.unsqueeze(depth_value, dim=1)
     return depth_value
 
 
