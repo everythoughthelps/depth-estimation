@@ -151,7 +151,7 @@ def test(test_loader, model, epoch):
 
         output = F.softmax(model(image))
         depth_pred = soft_sum(output)
-        depth_pred = F.interpolate(depth_pred, size=[depth.size(2), depth.size(3)], mode='bilinear')
+        depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
 
         results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / 255)
         if not os.path.exists('results'):
@@ -198,8 +198,8 @@ def soft_sum(probs):
     #depth_value = torch.unsqueeze(depth_value, dim=1)
 
 
-    q = (np.log10(10) - np.log10(args.e)) / (args.num_classes - 1)
-    label = probs.max(dim = 1)
+    q = (np.log10(10+args.e) - np.log10(args.e)) / (args.num_classes - 1)
+    _,label = probs.max(dim = 1)
     lgdepth = label * q + np.log10(args.e)
     depth_value = 10 ** (lgdepth) - args.e
     depth_value = torch.unsqueeze(depth_value, dim=1)
