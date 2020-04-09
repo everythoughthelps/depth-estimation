@@ -87,14 +87,11 @@ class FeatureFusionModule(nn.Module):
         self.FTB2 = FTB(in_ch_y, out_ch)
         self.AFA = AFA(in_ch_y)
 
-    def forward(self, x, y):
+    def forward(self, x, y,cat_h,cat_w):
         x = self.FTB1(x)
-        print('1',x.size())
         x = self.AFA(x, y)
-        print('2',x.size(),y.size())
         x = self.FTB2(x)
-        print('3',x.size())
-        x = F.interpolate(x, scale_factor=2, mode='bilinear')
+        x = F.interpolate(x, size=[cat_h,cat_w], mode='bilinear')
         return x
 
 
@@ -114,22 +111,12 @@ class DABC(nn.Module):
         self.prediction.add_module('pred', nn.Conv2d(256, num_classes, kernel_size=3, stride=1, padding=1))
 
     def forward(self, x):
-        print('x',x.size())
         x_block1, x_block2, x_block3, x_block4, glo_fea = self.fea_ext_module(x)
-        print(x_block1.size())
-        print(x_block2.size())
-        print(x_block3.size())
-        print(x_block4.size())
-        print(glo_fea.size())
 
-        out = self.F4(x_block4, glo_fea)
-        print(out.size())
-        out = self.F3(x_block3, out)
-        print(out.size())
-        out = self.F2(x_block2, out)
-        print(out.size())
-        out = self.F1(x_block1, out)
-        print(out.size())
+        out = self.F4(x_block4, glo_fea,x_block3.size(2),x_block3.size(3))
+        out = self.F3(x_block3, out,x_block2.size(2),x_block2.size(3))
+        out = self.F2(x_block2, out,x_block1.size(2),x_block1.size(3))
+        out = self.F1(x_block1, out,x.size(2)//2,x.size(3)//2)
 
         out = self.prediction(out)
         # out = F.softmax(out, dim=1)

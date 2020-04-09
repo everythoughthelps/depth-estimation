@@ -22,12 +22,12 @@ class depthDataset(Dataset):
     def __getitem__(self, idx):
         image_name = self.frame.at[idx, 0]
         depth_name = self.frame.at[idx, 1]
-        print(image_name,depth_name)
+        print(image_name,depth_name,idx)
 
         image = Image.open(os.path.join(self.data_path, image_name))
         depth = Image.open(os.path.join(self.data_path, depth_name))
 
-        sample = {'image': image, 'depth': depth}
+        sample = {'image': image, 'depth': depth }
         if self.transform:
             sample = self.transform(sample)
 
@@ -35,7 +35,7 @@ class depthDataset(Dataset):
 
         sample['label'] = torch.squeeze(
             torch.floor((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
-
+        sample['image_name'] = image_name
         return sample
 
     def __len__(self):
@@ -60,7 +60,7 @@ def getTrainingData(args):
                                             Scale(240),
                                             RandomHorizontalFlip(),
                                             RandomRotate(5),
-                                            CenterCrop([320, 224], [160, 112]),
+                                            CenterCrop([304, 228], [152, 114]),
                                             ToTensor(),
                                             # Lighting(0.1, __imagenet_pca[
                                             #     'eigval'], __imagenet_pca['eigvec']),
@@ -87,8 +87,7 @@ def getTestingData(args):
                                        csv_file='data/nyu2_test.csv',
                                        transform=transforms.Compose([
                                            Scale(240),
-                                           CenterCrop([320, 224], [320, 224]),
-                                           #CenterCrop([304, 228], [304, 228]),
+                                           CenterCrop([304, 228], [304, 228]),
                                            ToTensor(is_test=True),
                                            # Normalize(__imagenet_stats['mean'],
                                            #           __imagenet_stats['std'])

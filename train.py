@@ -21,7 +21,7 @@ parser.add_argument('--experiment', default='./experiments', type=str, help='pat
 parser.add_argument('--data', default='/data/nyuv2/', type=str, help='path of dataset')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
-parser.add_argument('--batch_size', default=4, type=int, help='batch size')
+parser.add_argument('--batch_size', default=2, type=int, help='batch size')
 parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
 parser.add_argument('--epochs', default=50, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number (useful on restarts)')
@@ -71,7 +71,6 @@ def main():
 
     train_loader = loaddata.getTrainingData(args)
     test_loader = loaddata.getTestingData(args)
-
     setup_logging()
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -126,8 +125,7 @@ def train(train_loader, model, optimizer, epoch):
 
         with open(os.path.join(args.save_path, 'records_batch.csv'), 'a') as f:
             f.write('%d,%d/%d,%f,%f,%f,%f\n' % (epoch, i, len(train_loader), batch_time.val, batch_time.sum, losses.val, losses.avg))
-        if i == 3:
-            break
+        break
 
     with open(os.path.join(args.save_path, 'records_epoch.csv'), 'a') as f:
         f.write('%d,%f\n' % (epoch, losses.avg))
@@ -143,7 +141,8 @@ def test(test_loader, model, epoch):
                 'MAE': 0, 'DELTA1': 0, 'DELTA2': 0, 'DELTA3': 0}
 
     for i, sample_batched in enumerate(test_loader):
-        image, depth, label = sample_batched['image'], sample_batched['depth'], sample_batched['label']
+        image, depth, label, image_name= sample_batched['image'], sample_batched['depth'], sample_batched['label'],\
+                                         sample_batched['image_name']
 
         image = image.cuda()
         depth = depth.cuda()
@@ -158,7 +157,8 @@ def test(test_loader, model, epoch):
             os.mkdir('results')
         if not os.path.exists('results/' + str(epoch) + 'epochs_results'):
             os.mkdir('results/' + str(epoch) + 'epochs_results')
-        results_imgs.save(os.getcwd() + '/results/' + str(epoch) + 'epochs_results/' + str(i)+'.png')
+        results_imgs.save(os.getcwd() + '/results/' + str(epoch) + 'epochs_results/' +
+                          str(image_name).strip(str(['data/nyu2_test/.png']))+'.png')
 
         batchSize = depth.size(0)
         totalNumber = totalNumber + batchSize
@@ -166,7 +166,6 @@ def test(test_loader, model, epoch):
         errorSum = util.addErrors(errorSum, errors, batchSize)
         averageError = util.averageErrors(errorSum, totalNumber)
         break
-
     averageError['RMSE'] = np.sqrt(averageError['MSE'])
     print('epoch %d testing' % epoch)
     print(averageError)
@@ -186,23 +185,22 @@ def test(test_loader, model, epoch):
 
 
 def soft_sum(probs):
-    #ones = torch.ones(probs.size()).float().cuda()
-    #unit = torch.arange(0, args.num_classes).view(1, probs.size(1), 1, 1).float()
-    #weight = unit
-    #for _ in range(probs.size(0) - 1):
-    #    weight = torch.cat((weight, unit), dim=0)
-    #weight = ones * weight.cuda()
-    #q = (np.log10(10) - np.log10(args.e)) / (args.num_classes - 1)
-    #weight = weight * q + np.log10(args.e)
-    #depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
-    #depth_value = torch.unsqueeze(depth_value, dim=1)
-
-
-    q = (np.log10(10+args.e) - np.log10(args.e)) / (args.num_classes - 1)
-    _,label = probs.max(dim = 1)
-    lgdepth = label * q + np.log10(args.e)
-    depth_value = 10 ** (lgdepth) - args.e
+    ones = torch.ones(probs.size()).float().cuda()
+    unit = torch.arange(0, args.num_classes).view(1, probs.size(1), 1, 1).float()
+    weight = unit
+    for _ in range(probs.size(0) - 1):
+        weight = torch.cat((weight, unit), dim=0)
+    weight = ones * weight.cuda()
+    q = (np.log10(10) - np.log10(args.e)) / (args.num_classes - 1)
+    weight = weight * q + np.log10(args.e)
+    depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
     depth_value = torch.unsqueeze(depth_value, dim=1)
+
+    #q = (np.log10(10+args.e) - np.log10(args.e)) / (args.num_classes - 1)
+    #_,label = probs.max(dim = 1)
+    #lgdepth = label * q + np.log10(args.e)
+    #depth_value = 10 ** (lgdepth) - args.e
+    #depth_value = torch.unsqueeze(depth_value, dim=1)
     return depth_value
 
 
@@ -237,7 +235,6 @@ def save_checkpoint(state, filename='checkpoint.pth.tar'):
 
 def setup_logging():
     save_path = os.path.join(args.experiment, time.strftime("%Y_%m_%d_%H_%M_%S"))
-    print(save_path)
     os.makedirs(save_path)
     ckp_path = os.path.join(save_path, 'ckp')
     os.mkdir(ckp_path)
