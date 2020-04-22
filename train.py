@@ -153,9 +153,10 @@ def test(test_loader, model, epoch):
         depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
 
         results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu()/10  )
-        os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
-        results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
-                          str(image_name).strip(str(['data/nyu2_test/.png']))+'.png')
+        if not os.path.exists(str(args.img_path) + '/' + str(epoch) + 'epochs_results/'):
+            os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
+            results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
+                              str(image_name).strip(str(['data/nyu2_test/.png']))+'.png')
 
         batchSize = depth.size(0)
         totalNumber = totalNumber + batchSize
