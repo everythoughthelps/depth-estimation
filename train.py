@@ -25,7 +25,7 @@ parser.add_argument('--batch_size', default=2, type=int, help='batch size')
 parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
 parser.add_argument('--epochs', default=50, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number (useful on restarts)')
-parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
+parser.add_argument('--lr', '--learning-rate', default=0.01, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=5e-4, type=float, help='weight decay (default: 1e-4)')
 parser.add_argument('--load',default=False)
@@ -152,12 +152,9 @@ def test(test_loader, model, epoch):
         depth_pred = soft_sum(output)
         depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
 
-        results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / 255)
-        if not os.path.exists('results'):
-            os.mkdir('results')
-        if not os.path.exists('results/' + str(epoch) + 'epochs_results'):
-            os.mkdir('results/' + str(epoch) + 'epochs_results')
-        results_imgs.save(os.getcwd() + '/results/' + str(epoch) + 'epochs_results/' +
+        results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu()/10  )
+        os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
+        results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
                           str(image_name).strip(str(['data/nyu2_test/.png']))+'.png')
 
         batchSize = depth.size(0)
@@ -237,7 +234,10 @@ def setup_logging():
     save_path = os.path.join(args.experiment, time.strftime("%Y_%m_%d_%H_%M_%S"))
     os.makedirs(save_path)
     ckp_path = os.path.join(save_path, 'ckp')
+    img_path = os.path.join(save_path, 'img')
+    os.mkdir(img_path)
     os.mkdir(ckp_path)
+    args.img_path = img_path
     args.ckp_path = ckp_path
     args.save_path = save_path
     with open(os.path.join(save_path, 'records_batch.csv'), 'w') as f:
