@@ -34,7 +34,7 @@ class depthDataset(Dataset):
         sample['depth'] = sample['depth']
 
         sample['label'] = torch.squeeze(
-            torch.floor((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
+            torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
         sample['image_name'] = image_name
         return sample
 

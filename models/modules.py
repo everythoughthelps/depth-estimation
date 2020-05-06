@@ -119,7 +119,6 @@ class DABC(nn.Module):
         out = self.F1(x_block1, out,x.size(2)//2,x.size(3)//2)
 
         out = self.prediction(out)
-        # out = F.softmax(out, dim=1)
 
         return out
 
