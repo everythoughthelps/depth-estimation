@@ -13,15 +13,20 @@ import util
 import numpy as np
 import sobel
 from torchvision.transforms import ToPILImage
-from models import modules, net, resnet, densenet, senet, resnext
+from models import modules, net, resnet, densenet, senet, resnext,unet_model
 import os
 
 parser = argparse.ArgumentParser(description='PyTorch DABC Training')
 parser.add_argument('--experiment', default='./experiments', type=str, help='path of experiments')
 parser.add_argument('--data', default='/data/nyuv2/', type=str, help='path of dataset')
+parser.add_argument('--image_size',default=[304,228],help='')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
 parser.add_argument('--batch_size', default=2, type=int, help='batch size')
+parser.add_argument('--data_sample_interval',default=6,help='how many imgs samples one img each')
+parser.add_argument('--discrete_strategy',default='log',help='')
+parser.add_argument('--rebuild_strategy',default='soft_sum',help='')
+parser.add_argument('--label_smooth',default='True',help='')
 parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
 parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number (useful on restarts)')
@@ -36,6 +41,8 @@ def define_model():
         clz_model = resnext.resnext(groups=64, width_per_group=4)
         fea_model = modules.FeatureResnext(clz_model.features)
         model = modules.DABC(fea_model, args.num_classes)
+    elif args.net_arch == 'unet':
+        model = unet_model.hopenet(resnet.Bottleneck,[3,4,6,3],64)
     elif args.net_arch == 'resnet':
         pass
     elif args.net_arch == 'densenet':
@@ -71,6 +78,7 @@ def main():
 
     train_loader = loaddata.getTrainingData(args)
     test_loader = loaddata.getTestingData(args)
+    print(len(train_loader))
     setup_logging()
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -149,13 +157,15 @@ def test(test_loader, model, epoch):
         #label = label.cuda()
 
         output = F.softmax(model(image))
-        depth_pred = soft_sum(output)
+        if args.rebuild_strategy == 'soft_sum':
+            depth_pred = soft_sum(output)
+        if args.rebuild_strategy == 'max':
+            depth_pred = max(output)
         depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
-
         results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu()/10  )
         if not os.path.exists(str(args.img_path) + '/' + str(epoch) + 'epochs_results/'):
             os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
-            results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
+        results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
                               str(image_name).strip(str(['data/nyu2_test/.png']))+'.png')
 
         batchSize = depth.size(0)
@@ -193,12 +203,14 @@ def soft_sum(probs):
     weight = weight * q + np.log10(args.e)
     depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
     depth_value = torch.unsqueeze(depth_value, dim=1)
+    return depth_value
 
-    #q = (np.log10(10+args.e) - np.log10(args.e)) / (args.num_classes - 1)
-    #_,label = probs.max(dim = 1)
-    #lgdepth = label * q + np.log10(args.e)
-    #depth_value = 10 ** (lgdepth) - args.e
-    #depth_value = torch.unsqueeze(depth_value, dim=1)
+def max(probs):
+    q = (np.log10(10+args.e) - np.log10(args.e)) / (args.num_classes - 1)
+    _,label = probs.max(dim = 1)
+    lgdepth = label * q + np.log10(args.e)
+    depth_value = 10 ** (lgdepth) - args.e
+    depth_value = torch.unsqueeze(depth_value, dim=1)
     return depth_value
 
 

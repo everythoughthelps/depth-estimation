@@ -18,6 +18,9 @@ class depthDataset(Dataset):
         self.transform = transform
         self.e = args.e
         self.q = (np.log10(10) - np.log10(self.e)) / (args.num_classes-1)
+        self.discrete_strategy = args.discrete_strategy
+        self.classes = args.num_classes
+
 
     def __getitem__(self, idx):
         image_name = self.frame.at[idx, 0]
@@ -32,9 +35,11 @@ class depthDataset(Dataset):
             sample = self.transform(sample)
 
         sample['depth'] = sample['depth']
-
-        sample['label'] = torch.squeeze(
-            torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
+        if self.discrete_strategy == 'log':
+            sample['label'] = torch.squeeze(
+                torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
+        if self.discrete_strategy == 'linear':
+            sample['label'] = torch.squeeze(sample['depth'] // (256/self.classes),dim=0)
         sample['image_name'] = image_name
         return sample
 
@@ -55,7 +60,7 @@ def getTrainingData(args):
                         'std': [0.229, 0.224, 0.225]}
 
     transformed_training = depthDataset(args,
-                                        csv_file='data/nyu2_train.csv',
+                                        csv_file='data/'+str(args.data_sample_interval)+'nyu2_train.csv',
                                         transform=transforms.Compose([
                                             Scale(240),
                                             RandomHorizontalFlip(),
