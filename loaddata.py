@@ -65,7 +65,7 @@ def getTrainingData(args):
                                             Scale(240),
                                             RandomHorizontalFlip(),
                                             RandomRotate(5),
-                                            CenterCrop([304, 228], [152, 114]),
+                                            CenterCrop(args.image_size[0],args.image_size[1]),
                                             ToTensor(),
                                             # Lighting(0.1, __imagenet_pca[
                                             #     'eigval'], __imagenet_pca['eigvec']),
@@ -92,7 +92,7 @@ def getTestingData(args):
                                        csv_file='data/nyu2_test.csv',
                                        transform=transforms.Compose([
                                            Scale(240),
-                                           CenterCrop([304, 228], [304, 228]),
+                                           CenterCrop(args.image_size[0],args.image_size[0]),
                                            ToTensor(is_test=True),
                                            # Normalize(__imagenet_stats['mean'],
                                            #           __imagenet_stats['std'])
