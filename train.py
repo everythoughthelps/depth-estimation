@@ -193,7 +193,7 @@ def test(test_loader, model, epoch):
 		errorSum = util.addErrors(errorSum, errors, batchSize)
 		averageError = util.averageErrors(errorSum, totalNumber)
 		break
-	averageError['RMSE'] = np.sqrt(averageError['MSE'])
+	averageError['RMSE'] = np.sqrt(averageError['MSE']) * 80 / 255
 	print('epoch %d testing' % epoch)
 	print(averageError)
 
