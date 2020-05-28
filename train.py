@@ -19,10 +19,9 @@ import os
 
 parser = argparse.ArgumentParser(description='PyTorch DABC Training')
 parser.add_argument('--experiment', default='./experiments', type=str, help='path of experiments')
-parser.add_argument('--data', default='/data/nyuv2/', type=str, help='path of dataset')
-parser.add_argument('--image_size', default=[[304, 228], [304,228]], help='')
+parser.add_argument('--data', default='/data/kitti/data', type=str, help='path of dataset')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
-parser.add_argument('--net_arch', default='unet', type=str, help='architecture of feature extraction')
+parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
 parser.add_argument('--batch_size', default=2, type=int, help='batch size')
 parser.add_argument('--data_sample_interval', default=6, help='how many imgs samples one img each')
 parser.add_argument('--discrete_strategy', default='log', help='')
@@ -78,9 +77,23 @@ def main():
 
 	cudnn.benchmark = True
 	optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=args.weight_decay)
+	print(args.data)
+	print(args)
+	if 'kitti' in args.data:
+		parser.add_argument('--image_size', default=[[640,192], [320,96]], help='')
+		args = parser.parse_args()
+		train_loader = loaddata.get_kitti_train_data(args)
+		test_loader = loaddata.get_kitti_test_data(args)
+		print('kitti')
 
-	train_loader = loaddata.getTrainingData(args)
-	test_loader = loaddata.getTestingData(args)
+	if 'nyu' in args.data:
+		parser.add_argument('--image_size', default=[[304, 228], [152,114]], help='')
+		args = parser.parse_args()
+		train_loader = loaddata.getTrainingData(args)
+		test_loader = loaddata.getTestingData(args)
+		print('nyu')
+
+	print(len(test_loader))
 	print(len(train_loader))
 	setup_logging()
 
@@ -116,6 +129,7 @@ def train(train_loader, model, optimizer, epoch):
 		optimizer.zero_grad()
 
 		output = model(image)
+		print(output.size())
 
 		loss_clz = criterion_clz(output, label)
 		# loss_depth = criterion_depth(soft_sum(output), depth)
@@ -171,7 +185,7 @@ def test(test_loader, model, epoch):
 		if not os.path.exists(str(args.img_path) + '/' + str(epoch) + 'epochs_results/'):
 			os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
 		results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
-						  str(image_name).strip(str(['data/nyu2_test/.png'])) + '.png')
+						  str(image_name).strip(str([''])))
 
 		batchSize = depth.size(0)
 		totalNumber = totalNumber + batchSize
