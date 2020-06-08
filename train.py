@@ -222,18 +222,18 @@ def soft_sum(probs):
 	for _ in range(probs.size(0) - 1):
 		weight = torch.cat((weight, unit), dim=0)
 	weight = ones * weight.cuda()
-	q = (np.log10(10) - np.log10(args.e)) / (args.num_classes - 1)
+	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
 	weight = weight * q + np.log10(args.e)
-	depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
+	depth_value = args.range ** (torch.sum(weight * probs, dim=1)) - args.e
 	depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
 
 def max(probs):
-	q = (np.log10(10 + args.e) - np.log10(args.e)) / (args.num_classes - 1)
+	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
 	_, label = probs.max(dim=1)
 	lgdepth = label * q + np.log10(args.e)
-	depth_value = 10 ** (lgdepth) - args.e
+	depth_value = args.range ** (lgdepth) - args.e
 	depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 

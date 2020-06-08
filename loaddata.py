@@ -16,7 +16,7 @@ class depthDataset(Dataset):
         self.frame = pd.read_csv(os.path.join(self.data_path, csv_file), header=None)
         self.transform = transform
         self.e = args.e
-        self.q = (np.log10(10) - np.log10(self.e)) / (args.num_classes-1)
+        self.q = (np.log10(10+self.e) - np.log10(self.e)) / (args.num_classes-1)
         self.discrete_strategy = args.discrete_strategy
         self.classes = args.num_classes
 
@@ -109,7 +109,7 @@ class kitti_dataset(Dataset):
         self.depth_path = self.data_path + 'data/' + self.mode + '/' +'y/'
         self.transform = transform
         self.e = args.e
-        self.q = (np.log10(80) - np.log10(self.e)) / (args.num_classes-1)
+        self.q = (np.log10(80+self.e) - np.log10(self.e)) / (args.num_classes-1)
         self.discrete_strategy = args.discrete_strategy
         self.classes = args.num_classes
 
