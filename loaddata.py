@@ -6,6 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 from nyu_transform import *
+from kitti_transform import kitti_ToTensor
 
 
 class depthDataset(Dataset):
@@ -38,7 +39,7 @@ class depthDataset(Dataset):
                 torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
         if self.discrete_strategy == 'linear':
             sample['label'] = torch.squeeze(sample['depth'] // (256/self.classes),dim=0)
-        sample['image_name'] = image_name
+        sample['image_name'] = image_name.strip('data/nyu2_test/')
         return sample
 
     def __len__(self):
@@ -104,11 +105,11 @@ class kitti_dataset(Dataset):
     def __init__(self, args, mode, transform=None):
         self.data_path = args.data
         self.mode = mode
-        self.img_path =  self.data_path + '/' + self.mode + '/' + 'X/'
-        self.depth_path = self.data_path + '/' + self.mode + '/' +'y/'
+        self.img_path =  self.data_path + 'data/' + self.mode + '/' + 'X/'
+        self.depth_path = self.data_path + 'data/' + self.mode + '/' +'y/'
         self.transform = transform
         self.e = args.e
-        self.q = (np.log10(10) - np.log10(self.e)) / (args.num_classes-1)
+        self.q = (np.log10(255) - np.log10(self.e)) / (args.num_classes-1)
         self.discrete_strategy = args.discrete_strategy
         self.classes = args.num_classes
 
@@ -153,7 +154,7 @@ def get_kitti_train_data(args):
                                             RandomHorizontalFlip(),
                                             RandomRotate(5),
                                             CenterCrop(args.image_size[0],args.image_size[1]),
-                                            ToTensor(),
+											kitti_ToTensor()
                                             # Lighting(0.1, __imagenet_pca[
                                             #     'eigval'], __imagenet_pca['eigvec']),
                                             # ColorJitter(
@@ -179,7 +180,7 @@ def get_kitti_test_data(args):
                                         'val',
                                        transform=transforms.Compose([
                                            CenterCrop(args.image_size[0],args.image_size[0]),
-                                           ToTensor(is_test=True),
+                                           kitti_ToTensor()
                                            # Normalize(__imagenet_stats['mean'],
                                            #           __imagenet_stats['std'])
                                        ]))

@@ -62,7 +62,7 @@ class RandomHorizontalFlip(object):
 
         if not _is_pil_image(image):
             raise TypeError(
-                'img should be PIL Image. Got {}'.format(type(img)))
+                'img should be PIL Image. Got {}'.format(type(image)))
         if not _is_pil_image(depth):
             raise TypeError(
                 'img should be PIL Image. Got {}'.format(type(depth)))

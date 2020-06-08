@@ -19,7 +19,7 @@ import os
 
 parser = argparse.ArgumentParser(description='PyTorch DABC Training')
 parser.add_argument('--experiment', default='./experiments', type=str, help='path of experiments')
-parser.add_argument('--data', default='/data/kitti/data', type=str, help='path of dataset')
+parser.add_argument('--data', default='/data/nyuv2/', type=str, help='path of dataset')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
 parser.add_argument('--batch_size', default=2, type=int, help='batch size')
@@ -27,7 +27,6 @@ parser.add_argument('--data_sample_interval', default=6, help='how many imgs sam
 parser.add_argument('--discrete_strategy', default='log', help='')
 parser.add_argument('--rebuild_strategy', default='soft_sum', help='')
 parser.add_argument('--label_smooth', default='True', help='')
-parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
 parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number (useful on restarts)')
 parser.add_argument('--lr', '--learning-rate', default=0.001, type=float, help='initial learning rate')
@@ -81,6 +80,8 @@ def main():
 	print(args)
 	if 'kitti' in args.data:
 		parser.add_argument('--image_size', default=[[640,192], [320,96]], help='')
+		parser.add_argument('--e', default=0.25, type=float, help='avoid log0')
+		parser.add_argument('--range', default=80, type=int)
 		args = parser.parse_args()
 		train_loader = loaddata.get_kitti_train_data(args)
 		test_loader = loaddata.get_kitti_test_data(args)
@@ -88,6 +89,8 @@ def main():
 
 	if 'nyu' in args.data:
 		parser.add_argument('--image_size', default=[[304, 228], [152,114]], help='')
+		parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
+		parser.add_argument('--range', default=10, type=int)
 		args = parser.parse_args()
 		train_loader = loaddata.getTrainingData(args)
 		test_loader = loaddata.getTestingData(args)
@@ -173,6 +176,7 @@ def test(test_loader, model, epoch):
 
 		image = image.cuda()
 		depth = depth.cuda()
+		print(image_name)
 		# label = label.cuda()
 
 		output = F.softmax(model(image))
@@ -181,7 +185,7 @@ def test(test_loader, model, epoch):
 		if args.rebuild_strategy == 'max':
 			depth_pred = max(output)
 		depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
-		results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / 10)
+		results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / args.range)
 		if not os.path.exists(str(args.img_path) + '/' + str(epoch) + 'epochs_results/'):
 			os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
 		results_imgs.save(str(args.img_path) + '/' + str(epoch) + 'epochs_results/' +
@@ -193,7 +197,7 @@ def test(test_loader, model, epoch):
 		errorSum = util.addErrors(errorSum, errors, batchSize)
 		averageError = util.averageErrors(errorSum, totalNumber)
 		break
-	averageError['RMSE'] = np.sqrt(averageError['MSE']) * 80 / 255
+	averageError['RMSE'] = np.sqrt(averageError['MSE'])
 	print('epoch %d testing' % epoch)
 	print(averageError)
 
