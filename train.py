@@ -25,7 +25,7 @@ parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='archi
 parser.add_argument('--batch_size', default=2, type=int, help='batch size')
 parser.add_argument('--data_sample_interval', default=6, help='how many imgs samples one img each')
 parser.add_argument('--discrete_strategy', default='log', help='')
-parser.add_argument('--rebuild_strategy', default='soft_sum', help='')
+parser.add_argument('--rebuild_strategy', default='max', help='')
 parser.add_argument('--label_smooth', default='True', help='')
 parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, help='manual epoch number (useful on restarts)')
@@ -224,7 +224,7 @@ def soft_sum(probs):
 	weight = ones * weight.cuda()
 	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
 	weight = weight * q + np.log10(args.e)
-	depth_value = args.range ** (torch.sum(weight * probs, dim=1)) - args.e
+	depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
 	depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
@@ -232,8 +232,9 @@ def soft_sum(probs):
 def max(probs):
 	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
 	_, label = probs.max(dim=1)
+	label = label.float()
 	lgdepth = label * q + np.log10(args.e)
-	depth_value = args.range ** (lgdepth) - args.e
+	depth_value = 10 ** (lgdepth) - args.e
 	depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
