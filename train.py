@@ -19,7 +19,7 @@ import os
 
 parser = argparse.ArgumentParser(description='PyTorch DABC Training')
 parser.add_argument('--experiment', default='./experiments', type=str, help='path of experiments')
-parser.add_argument('--data', default='/data/nyuv2/', type=str, help='path of dataset')
+parser.add_argument('--data', default='/data/nyuv2/data/', type=str, help='path of dataset')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
 parser.add_argument('--batch_size', default=2, type=int, help='batch size')
@@ -115,7 +115,7 @@ def train(train_loader, model, optimizer, epoch):
 	# criterion_depth = nn.L1Loss()
 	batch_time = AverageMeter()
 	losses = AverageMeter()
-
+	smooth_loss_L1= util.smooth_loss()
 	model.train()
 
 	end = time.time()
@@ -133,11 +133,12 @@ def train(train_loader, model, optimizer, epoch):
 
 		output = model(image)
 		print(output.size())
-
+		_,index = output.max(1)
+		loss_smooth = smooth_loss_L1(index)
 		loss_clz = criterion_clz(output, label)
 		# loss_depth = criterion_depth(soft_sum(output), depth)
 
-		loss = loss_clz
+		loss = loss_clz + loss_smooth
 
 		losses.update(loss.item(), image.size(0))
 		loss.backward()
@@ -196,7 +197,6 @@ def test(test_loader, model, epoch):
 		errors = util.evaluateError(depth_pred, depth)
 		errorSum = util.addErrors(errorSum, errors, batchSize)
 		averageError = util.averageErrors(errorSum, totalNumber)
-		break
 	averageError['RMSE'] = np.sqrt(averageError['MSE'])
 	print('epoch %d testing' % epoch)
 	print(averageError)

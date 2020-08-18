@@ -39,7 +39,7 @@ class depthDataset(Dataset):
                 torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
         if self.discrete_strategy == 'linear':
             sample['label'] = torch.squeeze(sample['depth'] // (256/self.classes),dim=0)
-        sample['image_name'] = image_name.strip('data/nyu2_test/')
+        sample['image_name'] = image_name[11:]
         return sample
 
     def __len__(self):
@@ -58,7 +58,7 @@ def getTrainingData(args):
                         'std': [0.229, 0.224, 0.225]}
 
     transformed_training = depthDataset(args,
-                                        csv_file='data/'+str(args.data_sample_interval)+'nyu2_train.csv',
+                                        csv_file='train_labeled.csv',
                                         transform=transforms.Compose([
                                             Scale(240),
                                             RandomHorizontalFlip(),
@@ -87,7 +87,7 @@ def getTestingData(args):
                         'std': [0.229, 0.224, 0.225]}
     # scale = random.uniform(1, 1.5)
     transformed_testing = depthDataset(args,
-                                       csv_file='data/nyu2_test.csv',
+                                       csv_file='val_labeled.csv',
                                        transform=transforms.Compose([
                                            Scale(240),
                                            CenterCrop(args.image_size[0],args.image_size[0]),

@@ -3,6 +3,7 @@
 import torch
 import math
 import numpy as np
+import torch.nn as nn
 
 def lg10(x):
     return torch.div(torch.log(x), math.log(10))
@@ -107,7 +108,16 @@ def averageErrors(errorSum, N):
 
     return averageError
 
+class smooth_loss(nn.Module):
+    def __init__(self):
+        super(smooth_loss, self).__init__()
 
+    def forward(self,label):
+        print(label.size())
+        grad_x = label[:,:,:-1] - label[:,:,1:]
+        grad_y = label[:,:-1,:] - label[:,1:,:]
+
+        return grad_x.float().mean() + grad_y.float().mean()
 
 
 
