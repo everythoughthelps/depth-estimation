@@ -24,7 +24,7 @@ parser.add_argument('--num_classes', default=120, type=int, help='number of dept
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
 parser.add_argument('--batch_size', default=2, type=int, help='batch size')
 parser.add_argument('--data_sample_interval', default=6, help='how many imgs samples one img each')
-parser.add_argument('--discrete_strategy', default='log', help='')
+parser.add_argument('--discrete_strategy', default='linear', help='')
 parser.add_argument('--rebuild_strategy', default='max', help='')
 parser.add_argument('--label_smooth', default='True', help='')
 parser.add_argument('--epochs', default=100, type=int, help='number of total epochs to run')
@@ -127,7 +127,7 @@ def train(train_loader, model, optimizer, epoch):
 
 		image = image.cuda()
 		# depth = depth.cuda()
-		label = label.cuda()
+		label = label.cuda().long()
 
 		optimizer.zero_grad()
 
@@ -182,9 +182,9 @@ def test(test_loader, model, epoch):
 
 		output = F.softmax(model(image))
 		if args.rebuild_strategy == 'soft_sum':
-			depth_pred = soft_sum(output)
+			depth_pred = soft_sum(output,args.discrete_strategy)
 		if args.rebuild_strategy == 'max':
-			depth_pred = max(output)
+			depth_pred = max(output,args.discrete_strategy)
 		depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
 		results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / args.range)
 		if not os.path.exists(str(args.img_path) + '/' + str(epoch) + 'epochs_results/'):
@@ -215,27 +215,37 @@ def test(test_loader, model, epoch):
 	return averageError['RMSE']
 
 
-def soft_sum(probs):
+def soft_sum(probs,rebuild):
+	global depth_value
 	ones = torch.ones(probs.size()).float().cuda()
 	unit = torch.arange(0, args.num_classes).view(1, probs.size(1), 1, 1).float()
 	weight = unit
 	for _ in range(probs.size(0) - 1):
 		weight = torch.cat((weight, unit), dim=0)
 	weight = ones * weight.cuda()
-	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
-	weight = weight * q + np.log10(args.e)
-	depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
-	depth_value = torch.unsqueeze(depth_value, dim=1)
+	if rebuild == 'log':
+		q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
+		weight = weight * q + np.log10(args.e)
+		depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
+		depth_value = torch.unsqueeze(depth_value, dim=1)
+	if rebuild == 'linear':
+		depth_value = args.num_classes *(torch.sum(weight * probs, dim = 1))
+		depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
 
-def max(probs):
+def max(probs,rebuild):
+	global depth_value
 	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
 	_, label = probs.max(dim=1)
 	label = label.float()
-	lgdepth = label * q + np.log10(args.e)
-	depth_value = 10 ** (lgdepth) - args.e
-	depth_value = torch.unsqueeze(depth_value, dim=1)
+	if rebuild == 'log':
+		lgdepth = label * q + np.log10(args.e)
+		depth_value = 10 ** (lgdepth) - args.e
+		depth_value = torch.unsqueeze(depth_value, dim=1)
+	if rebuild == 'linear':
+		depth_value = label * args.num_classes
+		depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
 
