@@ -38,7 +38,7 @@ class depthDataset(Dataset):
             sample['label'] = torch.squeeze(
                 torch.round((torch.log10(sample['depth'] + self.e) - np.log10(self.e)) / self.q).long(), dim=0)
         if self.discrete_strategy == 'linear':
-            sample['label'] = torch.squeeze(sample['depth'] // (256/self.classes),dim=0)
+            sample['label'] = torch.squeeze(sample['depth'] / (10/self.classes),dim=0)
         sample['image_name'] = image_name[11:]
         return sample
 

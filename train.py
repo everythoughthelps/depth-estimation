@@ -229,13 +229,13 @@ def soft_sum(probs,rebuild):
 		depth_value = 10 ** (torch.sum(weight * probs, dim=1)) - args.e
 		depth_value = torch.unsqueeze(depth_value, dim=1)
 	if rebuild == 'linear':
-		depth_value = args.num_classes *(torch.sum(weight * probs, dim = 1))
+		depth_value = 10 / args.num_classes *(torch.sum(weight * probs, dim = 1))
 		depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
 
 def max(probs,rebuild):
-	global depth_value
+	depth_value = 0
 	q = (np.log10(args.range + args.e) - np.log10(args.e)) / (args.num_classes - 1)
 	_, label = probs.max(dim=1)
 	label = label.float()
@@ -244,7 +244,7 @@ def max(probs,rebuild):
 		depth_value = 10 ** (lgdepth) - args.e
 		depth_value = torch.unsqueeze(depth_value, dim=1)
 	if rebuild == 'linear':
-		depth_value = label * args.num_classes
+		depth_value = label * 10 / args.num_classes
 		depth_value = torch.unsqueeze(depth_value, dim=1)
 	return depth_value
 
