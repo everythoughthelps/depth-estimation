@@ -11,19 +11,18 @@ import torch.optim
 import loaddata
 import util
 import numpy as np
-import sobel
 from torchvision.transforms import ToPILImage
-import torchvision.models.resnet as rn
 from models import modules, net, resnet, densenet, senet, resnext, unet_model
 import os
 
 parser = argparse.ArgumentParser(description='PyTorch DABC Training')
 parser.add_argument('--experiment', default='./experiments', type=str, help='path of experiments')
-parser.add_argument('--data', default='/data/nyuv2/data/', type=str, help='path of dataset')
+parser.add_argument('--nyu_data', default='/data/nyuv2/', type=str, help='path of nyu dataset')
+parser.add_argument('--kitti_data', default='/data/kitti/', type=str, help='path of kitti dataset')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
-parser.add_argument('--batch_size', default=2, type=int, help='batch size')
-parser.add_argument('--data_sample_interval', default=6, help='how many imgs samples one img each')
+parser.add_argument('--batch_size', default=4, type=int, help='batch size')
+parser.add_argument('--data_sample_interval', default=3, help='how many imgs samples one img each')
 parser.add_argument('--discrete_strategy', default='linear', help='')
 parser.add_argument('--rebuild_strategy', default='max', help='')
 parser.add_argument('--label_smooth', default='True', help='')
@@ -40,12 +39,12 @@ def define_model():
 		clz_model = resnext.resnext(groups=64, width_per_group=4)
 		fea_model = modules.FeatureResnext(clz_model.features)
 		model = modules.DABC(fea_model, args.num_classes)
-	elif args.net_arch == 'unet':
-		model = unet_model.hopenet(rn.Bottleneck, [3, 4, 6, 3], args.num_classes)
 	elif args.net_arch == 'resnet':
 		pass
 	elif args.net_arch == 'densenet':
-		pass
+		clz_model = densenet.densenet161(pretrained=True,)
+		fea_model = modules.FeatureResnext(clz_model.features)
+		model = modules.DABC(fea_model, args.num_classes)
 	elif args.net_arch == 'senet':
 		pass
 	else:
@@ -76,8 +75,8 @@ def main():
 
 	cudnn.benchmark = True
 	optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=args.weight_decay)
-	print(args.data)
 	print(args)
+	'''
 	if 'kitti' in args.data:
 		parser.add_argument('--image_size', default=[[640,192], [320,96]], help='')
 		parser.add_argument('--e', default=0.25, type=float, help='avoid log0')
@@ -86,8 +85,9 @@ def main():
 		train_loader = loaddata.get_kitti_train_data(args)
 		test_loader = loaddata.get_kitti_test_data(args)
 		print('kitti')
+	'''
 
-	if 'nyu' in args.data:
+	if 'nyu' in args.nyu_data:
 		parser.add_argument('--image_size', default=[[304, 228], [152,114]], help='')
 		parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
 		parser.add_argument('--range', default=10, type=int)
@@ -186,6 +186,8 @@ def test(test_loader, model, epoch):
 		if args.rebuild_strategy == 'max':
 			depth_pred = max(output,args.discrete_strategy)
 		depth_pred = F.interpolate(depth_pred.float(), size=[depth.size(2), depth.size(3)], mode='bilinear')
+		t = depth_pred.squeeze().float().cpu() / args.range
+		print(t.size())
 		results_imgs = ToPILImage()(depth_pred.squeeze().float().cpu() / args.range)
 		if not os.path.exists(str(args.img_path) + '/' + str(epoch) + 'epochs_results/'):
 			os.mkdir(str(args.img_path) + '/' + str(epoch) + 'epochs_results/')
@@ -216,7 +218,7 @@ def test(test_loader, model, epoch):
 
 
 def soft_sum(probs,rebuild):
-	global depth_value
+	depth_value = 0
 	ones = torch.ones(probs.size()).float().cuda()
 	unit = torch.arange(0, args.num_classes).view(1, probs.size(1), 1, 1).float()
 	weight = unit
