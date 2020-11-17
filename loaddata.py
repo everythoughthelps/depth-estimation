@@ -27,9 +27,9 @@ class PairBatchSampler(Sampler):
 
 			pair_indices = []
 			for idx in batch_indices:
-				y = self.dataset.get_class(idx)
+				data_class = self.dataset.get_class(idx)
 				pair_index = random.choice(indices)
-				while y not in self.dataset.stack_frame[pair_index]:
+				while data_class not in self.dataset.stack_frame.at[pair_index,0]:
 					pair_index= random.choice(indices)
 				pair_indices.append(pair_index)
 
@@ -45,11 +45,11 @@ class depthDataset(Dataset):
 	"""Face Landmarks dataset."""
 
 	def __init__(self, args, nyu_csv_file, kitti_txt_file, transform=None):
-		self.nyu_data_path = args.nyu_data
+		self.data_path = args.nyu_data
 		self.kitti_data_path = args.kitti_data
 		self.nyu_frame = pd.read_csv(nyu_csv_file, header=None)
 		self.kitti_frame = pd.read_fwf(kitti_txt_file, header=None)
-		self.stack_frame = pd.concat([self.kitti_frame,self.nyu_frame],axis=0)
+		self.stack_frame = pd.concat([self.kitti_frame,self.nyu_frame],axis=0,ignore_index=True)
 		self.transform = transform
 		self.e = args.e
 		self.q = (np.log10(10 + self.e) - np.log10(self.e)) / (args.num_classes - 1)
@@ -57,12 +57,18 @@ class depthDataset(Dataset):
 		self.classes = args.num_classes
 
 	def __getitem__(self, idx):
+		print(idx)
 		image_name = self.stack_frame.at[idx, 0]
 		depth_name = self.stack_frame.at[idx, 1]
 		print(image_name, depth_name, idx)
 
-		image = Image.open(os.path.join(self.nyu_data_path, image_name))
-		depth = Image.open(os.path.join(self.nyu_data_path, depth_name))
+		if 'kitti' in image_name:
+			image = Image.open(os.path.join(self.data_path, 'kitti/',image_name))
+			depth = Image.open(os.path.join(self.data_path, 'kitti/',depth_name))
+
+		else:
+			image = Image.open(os.path.join(self.data_path, 'nyuv2/',image_name))
+			depth = Image.open(os.path.join(self.data_path, 'nyuv2/',depth_name))
 
 		sample = {'image': image, 'depth': depth}
 		if self.transform:
@@ -81,8 +87,9 @@ class depthDataset(Dataset):
 		return len(self.stack_frame)
 
 	def get_class(self, id):
-		dataset_label = self.stack_frame.at[id,0]
-		return dataset_label
+		data_name = self.stack_frame.at[id,0]
+		data_class = 'kitti' if 'kitti' in data_name else 'nyu'
+		return data_class
 
 def getTrainingData(args):
 	__imagenet_pca = {
@@ -116,8 +123,8 @@ def getTrainingData(args):
 											#           __imagenet_stats['std'])
 										]))
 
-	dataloader_training = DataLoader(transformed_training,sampler=PairBatchSampler(transformed_training,args.batch_size),
-									 shuffle=False, num_workers=4, pin_memory=False)
+	dataloader_training = DataLoader(transformed_training,batch_sampler=PairBatchSampler(transformed_training,args.batch_size),
+									 num_workers=4, pin_memory=False)
 
 	return dataloader_training
 

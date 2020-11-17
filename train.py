@@ -17,7 +17,7 @@ import os
 
 parser = argparse.ArgumentParser(description='PyTorch DABC Training')
 parser.add_argument('--experiment', default='./experiments', type=str, help='path of experiments')
-parser.add_argument('--nyu_data', default='/data/nyuv2/', type=str, help='path of nyu dataset')
+parser.add_argument('--nyu_data', default='/data/', type=str, help='path of nyu dataset')
 parser.add_argument('--kitti_data', default='/data/kitti/', type=str, help='path of kitti dataset')
 parser.add_argument('--num_classes', default=120, type=int, help='number of depth classes')
 parser.add_argument('--net_arch', default='resnext_64x4d', type=str, help='architecture of feature extraction')
@@ -87,17 +87,14 @@ def main():
 		print('kitti')
 	'''
 
-	if 'nyu' in args.nyu_data:
-		parser.add_argument('--image_size', default=[[304, 228], [152,114]], help='')
-		parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
-		parser.add_argument('--range', default=10, type=int)
-		args = parser.parse_args()
-		train_loader = loaddata.getTrainingData(args)
-		test_loader = loaddata.getTestingData(args)
-		print('nyu')
+	parser.add_argument('--image_size', default=[[304, 228], [152,114]], help='')
+	parser.add_argument('--e', default=0.01, type=float, help='avoid log0')
+	parser.add_argument('--range', default=10, type=int)
+	args = parser.parse_args()
+	train_loader = loaddata.getTrainingData(args)
+	test_loader = loaddata.getTestingData(args)
+	print('nyu')
 
-	print(len(test_loader))
-	print(len(train_loader))
 	setup_logging()
 
 	for epoch in range(args.start_epoch, args.epochs):
@@ -121,6 +118,7 @@ def train(train_loader, model, optimizer, epoch):
 	end = time.time()
 	for i, sample_batched in enumerate(train_loader):
 		image, depth, label = sample_batched['image'], sample_batched['depth'], sample_batched['label']
+		continue
 		print('image', image.size())
 		print('depth', depth.size())
 		print('label', label.size())
